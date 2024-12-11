@@ -3,29 +3,31 @@ const wss = new WebSocket.Server({ port: 8080 });
 
 let waitingUsers = [];
 
-wss.on('connection', ws => {
+wss.on('connection', (ws) => {
   console.log('A user connected');
-  
+
   // Add the user to the waiting list
   waitingUsers.push(ws);
-  
+
   // Match with a random user when two users are available
   if (waitingUsers.length >= 2) {
     const user1 = waitingUsers.pop();
     const user2 = waitingUsers.pop();
 
-    user1.send('Matched with a random person!');
-    user2.send('Matched with a random person!');
+    // Notify users they have been matched
+    user1.send(JSON.stringify({ type: 'startChat', peerId: user2._socket.remoteAddress }));
+    user2.send(JSON.stringify({ type: 'startChat', peerId: user1._socket.remoteAddress }));
 
-    // Send the signaling data for WebRTC (simplified)
+    // Send signaling data (simplified for the moment)
     user1.send(JSON.stringify({ type: 'startChat', peerId: user2._socket.remoteAddress }));
     user2.send(JSON.stringify({ type: 'startChat', peerId: user1._socket.remoteAddress }));
   }
 
-  ws.on('message', message => {
+  ws.on('message', (message) => {
     console.log('Received message: ', message);
-    // Broadcast the message to all connected clients
-    wss.clients.forEach(client => {
+
+    // Forward messages to the correct peer
+    wss.clients.forEach((client) => {
       if (client !== ws && client.readyState === WebSocket.OPEN) {
         client.send(message);
       }
@@ -34,8 +36,7 @@ wss.on('connection', ws => {
 
   ws.on('close', () => {
     console.log('A user disconnected');
-    // Remove user from the waiting list when they disconnect
-    waitingUsers = waitingUsers.filter(client => client !== ws);
+    waitingUsers = waitingUsers.filter((client) => client !== ws);
   });
 });
 
