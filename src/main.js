@@ -8,13 +8,13 @@ const startChatButton = document.getElementById('startChatButton');
 const skipButton = document.getElementById('skipButton');
 const endChatButton = document.getElementById('endChatButton');
 
-// WebRTC setup (for video chat)
-let localStream;
+// Variable to store user ID
+let userId = null;
 let peerConnection;
-const servers = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }; // STUN server for NAT traversal
+let localStream;
 let socket;
 
-// Set up video stream
+// Setup local video stream
 function setupLocalStream() {
   navigator.mediaDevices.getUserMedia({ video: true, audio: true })
     .then(stream => {
@@ -26,7 +26,7 @@ function setupLocalStream() {
     });
 }
 
-// Set up WebSocket for text chat
+// Set up WebSocket for text chat and user matching
 function setupWebSocket() {
   socket = new WebSocket('ws://localhost:8080'); // Local WebSocket server
 
@@ -35,10 +35,20 @@ function setupWebSocket() {
   };
 
   socket.onmessage = (event) => {
-    const message = event.data;
-    const messageDiv = document.createElement('div');
-    messageDiv.textContent = message;
-    messagesDiv.appendChild(messageDiv);
+    const message = JSON.parse(event.data);
+
+    if (message.type === 'userId') {
+      userId = message.userId; // Store the unique user ID
+      console.log(`Assigned userId: ${userId}`);
+      document.getElementById('messages').innerHTML = `Your User ID: ${userId}`;
+    }
+
+    if (message.type === 'matched') {
+      // When matched, show the peer's user ID and start the video call
+      const peerId = message.peerId;
+      alert(`You are now matched with User ID: ${peerId}`);
+      startChat(peerId);
+    }
   };
 
   sendButton.addEventListener('click', () => {
@@ -51,7 +61,7 @@ function setupWebSocket() {
 }
 
 // Start a new random chat (initiate WebRTC peer connection)
-startChatButton.addEventListener('click', () => {
+function startChat(peerId) {
   startChatButton.style.display = 'none';
   skipButton.style.display = 'inline';
   endChatButton.style.display = 'inline';
@@ -59,18 +69,18 @@ startChatButton.addEventListener('click', () => {
   setupLocalStream();
   setupWebSocket();
 
-  // Create peer connection and exchange media
-  peerConnection = new RTCPeerConnection(servers);
-
+  // Create a new peer connection
+  peerConnection = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+  
   localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
   peerConnection.ontrack = (event) => {
     remoteVideo.srcObject = event.streams[0];
   };
 
-  // Implement signaling and matchmaking via WebSocket or a server (this is simplified)
-  socket.send(JSON.stringify({ type: 'startChat' }));
-});
+  // WebRTC signaling could happen here, sending offer/answer messages (simplified)
+  // Implement WebRTC signaling here for connecting peer-to-peer (not covered in this example)
+}
 
 // Skip to the next random person (close current peer connection)
 skipButton.addEventListener('click', () => {
@@ -78,7 +88,7 @@ skipButton.addEventListener('click', () => {
     peerConnection.close();
     remoteVideo.srcObject = null; // Reset remote video stream
   }
-  
+
   // Re-initialize a new chat
   startChatButton.click();
 });
