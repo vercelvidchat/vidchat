@@ -29,7 +29,7 @@ function setupLocalStream() {
 
 // Set up WebSocket for text chat and WebRTC signaling
 function setupWebSocket() {
-  socket = new WebSocket('ws://13.51.163.191:8080'); // Local WebSocket server
+  socket = new WebSocket('wss://13.51.163.191:8080'); //  WebSocket server
 
   socket.onopen = () => {
     console.log('Connected to the WebSocket server.');
